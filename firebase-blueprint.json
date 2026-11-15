@@ -1,0 +1,223 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Public non-PII profile for customers, farmers, and delivery agents.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "appUserId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["customer", "farmer", "delivery"] },
+        "city": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "area": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "farmName": { "type": "string", "maxLength": 160 },
+        "vehicleType": { "type": "string", "maxLength": 120 },
+        "isAvailable": { "type": "boolean" },
+        "ratingAvg": { "type": "number" },
+        "ratingCount": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "appUserId", "name", "role", "city", "area", "isAvailable", "updatedAt"]
+    },
+    "UserPrivateProfile": {
+      "title": "UserPrivateProfile",
+      "description": "Owner-isolated PII record containing phone, email, and language preference.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "appUserId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "phone": { "type": "string", "minLength": 10, "maxLength": 20 },
+        "email": { "type": "string", "maxLength": 160 },
+        "language": { "type": "string", "enum": ["en", "mr"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "appUserId", "phone", "language", "updatedAt"]
+    },
+    "FarmerListing": {
+      "title": "FarmerListing",
+      "description": "Bulk vegetable and fruit harvest listing published by a farmer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "farmerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "farmerName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "farmName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "productKey": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "productNameEn": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "productNameMr": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "category": { "type": "string", "enum": ["Vegetables", "Fruits", "Leafy Greens"] },
+        "variety": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "pricePerKg": { "type": "number" },
+        "minOrderKg": { "type": "integer" },
+        "availableKg": { "type": "integer" },
+        "cancellationCutoffHours": { "type": "integer" },
+        "livePhotoId": { "type": "string", "maxLength": 128 },
+        "livePhotoTimestamp": { "type": "string", "maxLength": 64 },
+        "isActive": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "farmerId",
+        "farmerName",
+        "productKey",
+        "productNameEn",
+        "productNameMr",
+        "pricePerKg",
+        "minOrderKg",
+        "availableKg",
+        "isActive",
+        "updatedAt"
+      ]
+    },
+    "UploadedPhoto": {
+      "title": "UploadedPhoto",
+      "description": "Timestamped live harvest and pre-order verification photo uploaded by farmers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "farmerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "customerId": { "type": "string", "maxLength": 128 },
+        "listingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "photoType": { "type": "string", "enum": ["listing_batch", "preorder_verification"] },
+        "photoDataUrl": { "type": "string", "minLength": 10, "maxLength": 750000 },
+        "note": { "type": "string", "maxLength": 300 },
+        "capturedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "farmerId", "listingId", "photoType", "photoDataUrl", "capturedAt"]
+    },
+    "OrderRecord": {
+      "title": "OrderRecord",
+      "description": "Bulk vegetable/fruit order record with tracking, payment, and post-delivery ratings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "orderCode": { "type": "string", "minLength": 3, "maxLength": 40 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "farmerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "listingId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "productNameEn": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "productNameMr": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "quantityKg": { "type": "integer" },
+        "pricePerKg": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["UPI", "Bank Transfer", "Bulk COD"] },
+        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid"] },
+        "status": {
+          "type": "string",
+          "enum": [
+            "placed",
+            "accepted_by_farmer",
+            "awaiting_delivery",
+            "out_for_delivery",
+            "delivered",
+            "cancelled"
+          ]
+        },
+        "deliveryCity": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "ratingScore": { "type": "integer" },
+        "deliveryRatingScore": { "type": "integer" },
+        "ratingReview": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "orderCode",
+        "ownerUid",
+        "customerId",
+        "farmerId",
+        "listingId",
+        "productNameEn",
+        "quantityKg",
+        "pricePerKg",
+        "totalAmount",
+        "paymentStatus",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PriceAlertRecord": {
+      "title": "PriceAlertRecord",
+      "description": "Customer price-drop subscription threshold for a produce item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "productKey": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "productNameEn": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "city": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "targetPricePerKg": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "customerId",
+        "productKey",
+        "productNameEn",
+        "city",
+        "targetPricePerKg",
+        "isActive",
+        "createdAt"
+      ]
+    },
+    "SignInRecord": {
+      "title": "SignInRecord",
+      "description": "Immutable sign-in event record capturing user role (customer, farmer, delivery), auth method, and server timestamp.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "appUserId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "role": { "type": "string", "enum": ["customer", "farmer", "delivery"] },
+        "authMethod": { "type": "string", "enum": ["google", "sms_otp"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "city": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "area": { "type": "string", "maxLength": 160 },
+        "signedInAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "appUserId", "role", "authMethod", "name", "city", "signedInAt"]
+    }
+  },
+  "firestore": {
+    "/users_public/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public farmer/customer/agent directory profiles without PII."
+    },
+    "/users_private/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivateProfile" },
+      "description": "Owner-only private PII (phone, email, language)."
+    },
+    "/listings/{listingId}": {
+      "schema": { "$ref": "#/entities/FarmerListing" },
+      "description": "Active bulk produce listings managed by farmers."
+    },
+    "/uploaded_photos/{photoId}": {
+      "schema": { "$ref": "#/entities/UploadedPhoto" },
+      "description": "Uploaded and live timestamped harvest verification photos."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/OrderRecord" },
+      "description": "Customer bulk orders, payment states, and ratings."
+    },
+    "/price_alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/PriceAlertRecord" },
+      "description": "Customer price-drop subscriptions."
+    },
+    "/sign_ins/{signInId}": {
+      "schema": { "$ref": "#/entities/SignInRecord" },
+      "description": "Sign-in history logs for customer, farmer, and delivery agent sessions."
+    }
+  }
+}

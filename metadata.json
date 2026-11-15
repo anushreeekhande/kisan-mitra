@@ -1,0 +1,6 @@
+{
+  "name": "Kisan Mitra",
+  "description": "Direct farmer-to-customer bulk vegetables and fruits marketplace with live APMC mandi price benchmarks, real-time timestamped harvest verification, live delivery tracking, and a bilingual AI advisor.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

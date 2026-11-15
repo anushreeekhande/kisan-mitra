@@ -1,0 +1,316 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable security helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'anushreeekhande@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation helpers
+    function isValidUserPublic(data) {
+      return data.keys().hasAll(['uid', 'appUserId', 'name', 'role', 'city', 'area', 'isAvailable', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'appUserId', 'name', 'role', 'city', 'area',
+          'farmName', 'vehicleType', 'isAvailable', 'ratingAvg', 'ratingCount', 'updatedAt'
+        ])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.appUserId is string && data.appUserId.size() > 0 && data.appUserId.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.role in ['customer', 'farmer', 'delivery']
+        && data.city is string && data.city.size() > 0 && data.city.size() <= 80
+        && data.area is string && data.area.size() > 0 && data.area.size() <= 160
+        && data.isAvailable is bool
+        && data.updatedAt is timestamp
+        && (!('farmName' in data) || (data.farmName is string && data.farmName.size() <= 160))
+        && (!('vehicleType' in data) || (data.vehicleType is string && data.vehicleType.size() <= 120))
+        && (!('ratingAvg' in data) || (data.ratingAvg is number && data.ratingAvg >= 0 && data.ratingAvg <= 5))
+        && (!('ratingCount' in data) || (data.ratingCount is int && data.ratingCount >= 0));
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'appUserId', 'phone', 'language', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'appUserId', 'phone', 'email', 'language', 'updatedAt'])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.appUserId is string && data.appUserId.size() > 0 && data.appUserId.size() <= 128
+        && data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 20
+        && data.language in ['en', 'mr']
+        && data.updatedAt is timestamp
+        && (!('email' in data) || (data.email is string && data.email.size() <= 160));
+    }
+
+    function isValidListing(data) {
+      return data.keys().hasAll([
+        'id', 'ownerUid', 'farmerId', 'farmerName', 'productKey',
+        'productNameEn', 'productNameMr', 'pricePerKg', 'minOrderKg',
+        'availableKg', 'isActive', 'updatedAt'
+      ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'farmerId', 'farmerName', 'farmName',
+          'productKey', 'productNameEn', 'productNameMr', 'category', 'variety',
+          'pricePerKg', 'minOrderKg', 'availableKg', 'cancellationCutoffHours',
+          'livePhotoId', 'livePhotoTimestamp', 'isActive', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && data.farmerId is string && data.farmerId.size() > 0 && data.farmerId.size() <= 128
+        && data.farmerName is string && data.farmerName.size() > 0 && data.farmerName.size() <= 120
+        && data.productKey is string && data.productKey.size() > 0 && data.productKey.size() <= 80
+        && data.productNameEn is string && data.productNameEn.size() > 0 && data.productNameEn.size() <= 120
+        && data.productNameMr is string && data.productNameMr.size() > 0 && data.productNameMr.size() <= 120
+        && data.pricePerKg is number && data.pricePerKg > 0
+        && data.minOrderKg is int && data.minOrderKg >= 1
+        && data.availableKg is int && data.availableKg >= 0
+        && data.isActive is bool
+        && data.updatedAt is timestamp
+        && (!('farmName' in data) || (data.farmName is string && data.farmName.size() <= 160))
+        && (!('category' in data) || data.category in ['Vegetables', 'Fruits', 'Leafy Greens'])
+        && (!('variety' in data) || (data.variety is string && data.variety.size() <= 120))
+        && (!('cancellationCutoffHours' in data) || (data.cancellationCutoffHours is int && data.cancellationCutoffHours >= 1))
+        && (!('livePhotoId' in data) || (data.livePhotoId is string && data.livePhotoId.size() <= 128))
+        && (!('livePhotoTimestamp' in data) || (data.livePhotoTimestamp is string && data.livePhotoTimestamp.size() <= 64));
+    }
+
+    function isValidUploadedPhoto(data) {
+      return data.keys().hasAll(['id', 'ownerUid', 'farmerId', 'listingId', 'photoType', 'photoDataUrl', 'capturedAt'])
+        && data.keys().hasOnly(['id', 'ownerUid', 'farmerId', 'customerId', 'listingId', 'photoType', 'photoDataUrl', 'note', 'capturedAt'])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && data.farmerId is string && data.farmerId.size() > 0 && data.farmerId.size() <= 128
+        && data.listingId is string && data.listingId.size() > 0 && data.listingId.size() <= 128
+        && data.photoType in ['listing_batch', 'preorder_verification']
+        && data.photoDataUrl is string && data.photoDataUrl.size() >= 10 && data.photoDataUrl.size() <= 750000
+        && data.capturedAt is timestamp
+        && (!('customerId' in data) || (data.customerId is string && data.customerId.size() <= 128))
+        && (!('note' in data) || (data.note is string && data.note.size() <= 300));
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+        'id', 'orderCode', 'ownerUid', 'customerId', 'farmerId', 'listingId',
+        'productNameEn', 'quantityKg', 'pricePerKg', 'totalAmount',
+        'paymentStatus', 'status', 'createdAt', 'updatedAt'
+      ])
+        && data.keys().hasOnly([
+          'id', 'orderCode', 'ownerUid', 'customerId', 'farmerId', 'farmerUid',
+          'listingId', 'productNameEn', 'productNameMr', 'quantityKg', 'pricePerKg',
+          'totalAmount', 'paymentMethod', 'paymentStatus', 'status', 'deliveryCity',
+          'ratingScore', 'ratingReview', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.orderCode is string && data.orderCode.size() >= 3 && data.orderCode.size() <= 40
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && data.customerId is string && data.customerId.size() > 0 && data.customerId.size() <= 128
+        && data.farmerId is string && data.farmerId.size() > 0 && data.farmerId.size() <= 128
+        && data.listingId is string && data.listingId.size() > 0 && data.listingId.size() <= 128
+        && data.productNameEn is string && data.productNameEn.size() > 0 && data.productNameEn.size() <= 120
+        && data.quantityKg is int && data.quantityKg >= 1
+        && data.pricePerKg is number && data.pricePerKg > 0
+        && data.totalAmount is number && data.totalAmount > 0
+        && data.paymentStatus in ['Pending', 'Paid']
+        && data.status in ['placed', 'accepted_by_farmer', 'awaiting_delivery', 'out_for_delivery', 'delivered', 'cancelled']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (!('farmerUid' in data) || (data.farmerUid is string && data.farmerUid.size() <= 128))
+        && (!('productNameMr' in data) || (data.productNameMr is string && data.productNameMr.size() <= 120))
+        && (!('paymentMethod' in data) || data.paymentMethod in ['UPI', 'Bank Transfer', 'Bulk COD'])
+        && (!('deliveryCity' in data) || (data.deliveryCity is string && data.deliveryCity.size() <= 80))
+        && (!('ratingScore' in data) || (data.ratingScore is int && data.ratingScore >= 1 && data.ratingScore <= 5))
+        && (!('ratingReview' in data) || (data.ratingReview is string && data.ratingReview.size() <= 500));
+    }
+
+    function isValidPriceAlert(data) {
+      return data.keys().hasAll([
+        'id', 'ownerUid', 'customerId', 'productKey', 'productNameEn',
+        'city', 'targetPricePerKg', 'isActive', 'createdAt'
+      ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'customerId', 'productKey', 'productNameEn',
+          'city', 'targetPricePerKg', 'isActive', 'createdAt'
+        ])
+        && isValidId(data.id)
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128
+        && data.customerId is string && data.customerId.size() > 0 && data.customerId.size() <= 128
+        && data.productKey is string && data.productKey.size() > 0 && data.productKey.size() <= 80
+        && data.productNameEn is string && data.productNameEn.size() > 0 && data.productNameEn.size() <= 120
+        && data.city is string && data.city.size() > 0 && data.city.size() <= 80
+        && data.targetPricePerKg is number && data.targetPricePerKg > 0
+        && data.isActive is bool
+        && data.createdAt is timestamp;
+    }
+
+    // 1. Public profiles (non-PII)
+    match /users_public/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.role in ['customer', 'farmer', 'delivery'];
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPublic(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPublic(incoming())
+        && (isOwner(userId) || isAdmin())
+        && incoming().uid == existing().uid
+        && incoming().appUserId == existing().appUserId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'city', 'area', 'farmName', 'vehicleType', 'isAvailable', 'ratingAvg', 'ratingCount', 'updatedAt'
+        ]);
+      allow delete: if isAdmin();
+    }
+
+    // 2. Private PII profiles (phone, email, language)
+    match /users_private/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPrivate(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPrivate(incoming())
+        && (isOwner(userId) || isAdmin())
+        && incoming().uid == existing().uid
+        && incoming().appUserId == existing().appUserId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'email', 'language', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+
+    // 3. Farmer produce listings
+    match /listings/{listingId} {
+      allow get: if isSignedIn() && isValidId(listingId);
+      allow list: if isSignedIn() && (resource.data.isActive == true || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(listingId)
+        && isValidListing(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(listingId)
+        && isValidListing(incoming())
+        && (existing().ownerUid == request.auth.uid || isAdmin())
+        && incoming().id == existing().id
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().farmerId == existing().farmerId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'productNameEn', 'productNameMr', 'variety', 'pricePerKg',
+          'minOrderKg', 'availableKg', 'cancellationCutoffHours',
+          'livePhotoId', 'livePhotoTimestamp', 'isActive', 'updatedAt'
+        ]);
+      allow delete: if isAdmin();
+    }
+
+    // 4. Uploaded & live timestamped photos
+    match /uploaded_photos/{photoId} {
+      allow get: if isSignedIn() && isValidId(photoId) && (
+        resource.data.ownerUid == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isVerifiedUser()
+        && isValidId(photoId)
+        && isValidUploadedPhoto(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().capturedAt == request.time;
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(photoId) && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // 5. Orders & past orders history
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && isValidId(orderId) && (
+        resource.data.ownerUid == request.auth.uid ||
+        resource.data.farmerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid ||
+        resource.data.farmerUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidOrder(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidOrder(incoming())
+        && (
+          isAdmin() || (
+            (existing().ownerUid == request.auth.uid || existing().farmerUid == request.auth.uid)
+            && !(existing().status in ['delivered', 'cancelled'])
+            && incoming().id == existing().id
+            && incoming().orderCode == existing().orderCode
+            && incoming().ownerUid == existing().ownerUid
+            && incoming().customerId == existing().customerId
+            && incoming().farmerId == existing().farmerId
+            && incoming().createdAt == existing().createdAt
+            && incoming().updatedAt == request.time
+            && (
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['paymentStatus', 'updatedAt']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['ratingScore', 'ratingReview', 'updatedAt'])
+            )
+          )
+        );
+      allow delete: if isAdmin();
+    }
+
+    // 6. Customer price-drop alerts
+    match /price_alerts/{alertId} {
+      allow get: if isSignedIn() && isValidId(alertId) && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(alertId)
+        && isValidPriceAlert(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(alertId) && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+  }
+}
